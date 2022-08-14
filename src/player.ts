@@ -11,11 +11,23 @@ export class PlayerDto {
 export class Player {
   constructor(public player: PlayerDto) {}
 
-  get id() {
+  get id(): string {
     return this.player.id;
   }
 
-  toDto() {
+  static get list(): PlayerDto[] {
+    return playerStorage;
+  }
+
+  static exist(playerId: string): boolean {
+    return !!playerStorage.find((p: PlayerDto) => p.id === playerId);
+  }
+
+  static findById(playerId: string): PlayerDto | undefined {
+    return playerStorage.find((p: PlayerDto) => p.id === playerId);
+  }
+
+  toDto(): PlayerDto {
     return this.player;
   }
 
