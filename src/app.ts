@@ -1,9 +1,10 @@
+import path from 'path';
 import express, { Express, Request, Response } from 'express';
 import WebSocket from 'ws';
 import cors from 'cors';
 
-import { GameList } from './gameList';
-import { Invite, inviteEmitter, InviteError } from './invite';
+import { Invite } from './invite';
+import { inviteEmitter } from './inviteEmitter';
 import { Player } from './player';
 import { isCreateInviteBody } from './typeguards/isCreateInviteBody';
 import { InviteActions, InviteEmitterPayload } from './inviteEmitter';
@@ -18,10 +19,12 @@ import {
   GameEmitterStepTimeoutPayload,
 } from './gameEmitter';
 import { GameService } from './gameService';
-import path from 'path';
+import { InviteError } from './exceptions/inviteError';
 
 const app: Express = express();
 app.use(express.json());
+
+// For development purpose, use static folder on production
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
 
 const wss = new WebSocket.Server({ port: 8081 });
@@ -89,16 +92,21 @@ gameEmitter.on(GameActions.OnStepTimeout, (payload: GameEmitterStepTimeoutPayloa
   GameService.onStepTimeout(wss.clients, payload);
 });
 
+/**
+ * Frontend client
+ */
 app.use('/', express.static(path.resolve(__dirname, './../../tic-tac-toe-front/dist')));
 
-app.get('/games', (req: Request, res: Response) => {
-  res.json({ games: GameList.list });
-});
-
+/**
+ * Used to retrieve players to make invite
+ */
 app.get('/players', (req: Request, res: Response) => {
   res.json({ players: Player.list });
 });
 
+/**
+ * Used to invite client (player) to [game session]{@link GameSession}
+ */
 app.post('/invite', (req: Request, res: Response) => {
   const inviteDto = req.body.invite;
   if (!inviteDto || !isCreateInviteBody(inviteDto)) {

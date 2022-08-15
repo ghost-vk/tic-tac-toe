@@ -1,6 +1,7 @@
 import { Player, PlayerDto } from './player';
 import { randomUUID } from 'crypto';
 import { gameEmitter } from './gameEmitter';
+import { GameError } from './exceptions/gameError';
 
 export class GameDto {
   constructor(
@@ -30,8 +31,9 @@ export type StepResult = {
   errors: string[];
 };
 
-class GameError extends Error {}
-
+/**
+ * Main game core class responsible for game logic
+ */
 export class Game {
   public readonly id: string;
   public readonly firstPlayer: Player;
@@ -58,6 +60,30 @@ export class Game {
     }
   }
 
+  /**
+   * Returns current board state
+   *
+   * @returns { Board }
+   */
+  get board(): Board {
+    return this._board;
+  }
+
+  /**
+   * Returns player which make last step if game ended
+   *
+   * @returns { PlayerDto | null }
+   */
+  get winner(): PlayerDto | null {
+    if (!this.isEnded) return null;
+    return this.history.length > 0 ? this.history.slice(-1)[0].actor : null;
+  }
+
+  /**
+   * Method builds board with given dimensions and fill cells null values
+   *
+   * @returns { void }
+   */
   buildBoard(): void {
     const board: Board = [];
     for (let i = 0; i < this.boardSize; i += 1) {
@@ -71,15 +97,16 @@ export class Game {
     this._board = board;
   }
 
-  get board(): Board {
-    return this._board;
-  }
-
-  get winner(): PlayerDto | null {
-    if (!this.isEnded) return null;
-    return this.history.length > 0 ? this.history.slice(-1)[0].actor : null;
-  }
-
+  /**
+   * Method performs step capability checks and call
+   * [makeStep]{@link Game.makeStep} if step is possible.
+   *
+   * Side effects:
+   *   - Prints current state of game board
+   *
+   * @param { Step } step => Step which need to be performed
+   * @returns { StepResult }
+   */
   next(step: Step): StepResult {
     let errors: string[] = [];
 
@@ -138,6 +165,34 @@ export class Game {
     };
   }
 
+  /**
+   * Method prints the current state of game board in multiple lines
+   * for ease of debugging
+   *
+   * @returns { void }
+   */
+  public logBoard(): void {
+    for (let i = 0; i < this.boardSize; i += 1) {
+      let row = '[ ';
+      for (let j = 0; j < this.boardSize; j += 1) {
+        const val = this.board[i][j];
+        const displayValue = val ? val : '_';
+        row += displayValue + ' ';
+        if (j === this.boardSize - 1) {
+          row += ']';
+        }
+      }
+      console.log(row);
+    }
+  }
+
+  /**
+   * Method compares actor from step with first and second player.
+   * Returns error if actor not matches players in game.
+   *
+   * @param { Step } step => Step to check
+   * @returns { true | GameError }
+   */
   checkPlayerBelongsGame(step: Step): true | GameError {
     if (step.actor.id !== this.firstPlayer.id && step.actor.id !== this.secondPlayer.id) {
       return new GameError('A player outside the game has no right to step');
@@ -145,11 +200,23 @@ export class Game {
     return true;
   }
 
+  /**
+   * Method returns error if game already ended
+   *
+   * @returns { false | GameError }
+   */
   getErrorIfGameEnded(): false | GameError {
     if (this.isEnded) return new GameError('Game already ended');
     return false;
   }
 
+  /**
+   * Method compares step actor and actor in last step. If actors are matched
+   * returns error. One player replay protection.
+   *
+   * @param { Step } step => Step to check
+   * @returns { true | GameError }
+   */
   checkUserCanStep(step: Step): true | GameError {
     if (this.history.length === 0) return true;
     const lastStep = this.history.slice(-1)[0];
@@ -159,7 +226,19 @@ export class Game {
     return true;
   }
 
-  makeStep(step: Step): true | GameError {
+  /**
+   * The method checks the availability of the desired coordinates and saves
+   * step to board.
+   *
+   * Side effects:
+   *   - Saves step to history
+   *   - Start timeout to control time per step
+   *
+   * @private
+   * @param { Step } step => Step to be taken
+   * @returns { true | GameError }
+   */
+  private makeStep(step: Step): true | GameError {
     if (step.x < 0 || step.x > this.boardSize - 1) {
       return new GameError('Unavailable x coord');
     }
@@ -195,14 +274,14 @@ export class Game {
    * @param { Step } step => Step for check in callback
    * @returns { void }
    */
-  controlTimeToStep(step: Step): void {
+  private controlTimeToStep(step: Step): void {
     const lastStep = this.history.slice(-1)[0];
     if (step.actor === lastStep.actor && step.x === lastStep.x && step.y === lastStep.y) {
       gameEmitter.onStepTimeout({ gameId: this.id, winnerId: step.actor.id });
     }
   }
 
-  isWin(): boolean {
+  private isWin(): boolean {
     if (this.checkWinHorizontally()) return true;
     if (this.checkWinVertically()) return true;
     return this.checkWinDiagonally();
@@ -222,7 +301,7 @@ export class Game {
    *   returns true
    * @returns { boolean } Shows if all diagonal elements are equal
    */
-  checkWinHorizontally(): boolean {
+  private checkWinHorizontally(): boolean {
     for (const row of this.board) {
       const firstElement = row[0];
       if (firstElement === null) continue;
@@ -249,7 +328,7 @@ export class Game {
    *   returns true
    * @returns { boolean } Shows if all diagonal elements are equal
    */
-  checkWinVertically(): boolean {
+  private checkWinVertically(): boolean {
     for (let i = 0; i < this.boardSize; i += 1) {
       const firstElement = this.board[0][i];
       if (firstElement === null) continue;
@@ -262,7 +341,7 @@ export class Game {
     return false;
   }
 
-  checkWinDiagonally(): boolean {
+  private checkWinDiagonally(): boolean {
     if (this.checkWinDiagonallyFromLeftUp()) return true;
     if (this.checkWinDiagonallyFromRightUp()) return true;
     return false;
@@ -282,7 +361,7 @@ export class Game {
    *   returns true
    * @returns { boolean } Shows if all diagonal elements are equal
    */
-  checkWinDiagonallyFromLeftUp(): boolean {
+  private checkWinDiagonallyFromLeftUp(): boolean {
     const upperLeftElement = this.board[0][0];
     if (upperLeftElement === null) return false;
     // Zero element is always equal to itself
@@ -306,7 +385,7 @@ export class Game {
    *   returns true
    * @returns { boolean } Shows if all diagonal elements are equal
    */
-  checkWinDiagonallyFromRightUp(): boolean {
+  private checkWinDiagonallyFromRightUp(): boolean {
     const lastIdx = this.boardSize - 1;
     const upperRightElement = this.board[0][this.boardSize - 1];
     if (upperRightElement === null) return false;
@@ -317,20 +396,5 @@ export class Game {
       }
     }
     return true;
-  }
-
-  logBoard(): void {
-    for (let i = 0; i < this.boardSize; i += 1) {
-      let row = '[ ';
-      for (let j = 0; j < this.boardSize; j += 1) {
-        const val = this.board[i][j];
-        const displayValue = val ? val : '_';
-        row += displayValue + ' ';
-        if (j === this.boardSize - 1) {
-          row += ']';
-        }
-      }
-      console.log(row);
-    }
   }
 }

@@ -1,21 +1,9 @@
-import { Player } from "./player";
-import { GameSession } from "./gameSession";
-import { randomUUID } from "crypto";
-
-import { InviteEmitter } from "./inviteEmitter";
-
-export const inviteEmitter = new InviteEmitter();
-
-export class InviteError extends Error {}
-
-type InviteStatus = "pending" | "accepted" | "declined";
-
-type InviteData = {
-  id: string,
-  actorId: string,
-  invitedPlayerId: string,
-  status: InviteStatus
-}
+import { Player } from './player';
+import { GameSession } from './gameSession';
+import { randomUUID } from 'crypto';
+import { inviteEmitter } from './inviteEmitter';
+import { InviteData, InviteStatus } from './types/invite';
+import { InviteError } from './exceptions/inviteError';
 
 let invites: Invite[] = [];
 
@@ -24,7 +12,7 @@ export class Invite {
     public id: string,
     public actorId: string,
     public invitedPlayerId: string,
-    public status: InviteStatus = "pending",
+    public status: InviteStatus = 'pending'
   ) {}
 
   toDto(): InviteData {
@@ -33,19 +21,16 @@ export class Invite {
       actorId: this.actorId,
       invitedPlayerId: this.invitedPlayerId,
       status: this.status,
-    }
+    };
   }
 
-  static createInvite(
-    actorId: string,
-    invitedPlayerId: string
-  ): Invite | InviteError {
+  static createInvite(actorId: string, invitedPlayerId: string): Invite | InviteError {
     if (!Player.exist(actorId)) {
-      return new InviteError("Actor not exist");
+      return new InviteError('Actor not exist');
     }
 
     if (!Player.exist(invitedPlayerId)) {
-      return new InviteError("Invited played not exist");
+      return new InviteError('Invited played not exist');
     }
 
     if (actorId === invitedPlayerId) {
@@ -53,7 +38,7 @@ export class Invite {
     }
 
     const id = randomUUID();
-    const invite = new Invite(id, actorId, invitedPlayerId, "pending");
+    const invite = new Invite(id, actorId, invitedPlayerId, 'pending');
 
     invites.push(invite);
 
@@ -70,25 +55,25 @@ export class Invite {
     const invite = invites.find((i: Invite) => i.id === inviteId);
 
     if (!invite) {
-      return new InviteError("Invite not found");
+      return new InviteError('Invite not found');
     }
 
-    if (invite.status !== "pending") {
-      return new InviteError("Invite already accepted/declined");
+    if (invite.status !== 'pending') {
+      return new InviteError('Invite already accepted/declined');
     }
 
     const firstPlayer = Player.findById(invite.actorId);
     if (!firstPlayer) {
-      return new InviteError("Actor not exist");
+      return new InviteError('Actor not exist');
     }
 
     const secondPlayer = Player.findById(invite.invitedPlayerId);
     if (!secondPlayer) {
-      return new InviteError("Invited played not exist");
+      return new InviteError('Invited played not exist');
     }
 
     const session = new GameSession(firstPlayer, secondPlayer, invite.id);
-    invite.status = "accepted";
+    invite.status = 'accepted';
     return session;
   }
 
@@ -96,14 +81,14 @@ export class Invite {
     const invite = invites.find((i: Invite) => i.id === inviteId);
 
     if (!invite) {
-      return new InviteError("Invite not found");
+      return new InviteError('Invite not found');
     }
 
-    if (invite.status !== "pending") {
-      return new InviteError("Invite already accepted/declined");
+    if (invite.status !== 'pending') {
+      return new InviteError('Invite already accepted/declined');
     }
 
-    invite.status = "declined";
+    invite.status = 'declined';
     return true;
   }
 }

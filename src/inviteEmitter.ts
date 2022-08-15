@@ -26,3 +26,5 @@ export class InviteEmitter extends EventEmitter {
     this.emit(InviteActions.OnAcceptInvite, payload);
   }
 }
+
+export const inviteEmitter = new InviteEmitter();
