@@ -17,12 +17,14 @@ tsconfig.tsbuildinfo
 
 # IDEs and editors
 /.idea
+.run
 .project
 .classpath
 .c9/
 *.launch
 .settings/
 *.sublime-workspace
+
 
 # IDE - VSCode
 .vscode/*

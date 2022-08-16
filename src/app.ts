@@ -2,6 +2,7 @@ import path from 'path';
 import express, { Express, Request, Response } from 'express';
 import WebSocket from 'ws';
 import cors from 'cors';
+import dotenv from 'dotenv';
 
 import { Invite } from './invite';
 import { inviteEmitter } from './inviteEmitter';
@@ -21,13 +22,21 @@ import {
 import { GameService } from './gameService';
 import { InviteError } from './exceptions/inviteError';
 
+dotenv.config({ path: path.resolve(__dirname, './../.env') });
+
+const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT ? Number(process.env.WEBSOCKET_PORT) : 8081;
+const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 8080;
+
 const app: Express = express();
 app.use(express.json());
 
 // For development purpose, use static folder on production
-app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
+const origin = process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : [];
+if (origin.length > 0) {
+  app.use(cors({ origin }));
+}
 
-const wss = new WebSocket.Server({ port: 8081 });
+const wss = new WebSocket.Server({ port: WEBSOCKET_PORT });
 
 function onConnect(ws: WebSocketWithId) {
   const player = Player.create();
@@ -65,29 +74,42 @@ function onConnect(ws: WebSocketWithId) {
     }
   });
 
-  ws.on('close', () => {
-    Player.deletePlayer(player.id);
-  });
+  ws.on('close', () => Player.deletePlayer(player.id));
 }
 
 wss.on('connection', onConnect);
 
+/**
+ * Fires when one player creates invite to another player
+ */
 inviteEmitter.on(InviteActions.OnCreateInvite, (payload: InviteEmitterPayload) => {
   InviteService.onCreateInvite(wss.clients, payload);
 });
 
+/**
+ * Fires when someone player accepted to invite from another player
+ */
 inviteEmitter.on(InviteActions.OnAcceptInvite, (payload: InviteEmitterPayload) => {
   InviteService.onAcceptInvite(wss.clients, payload);
 });
 
+/**
+ * Fires when [game]{@link Game} has been created in [game session]{@link GameSession}
+ */
 gameEmitter.on(GameActions.OnCreateGame, (payload: GameEmitterPayload) => {
   GameService.onGameCreated(wss.clients, payload);
 });
 
+/**
+ * Fires when player make [step]{@link Step}
+ */
 gameEmitter.on(GameActions.OnMakeStep, (payload: GameEmitterStepPayload) => {
   GameService.onGameStep(wss.clients, payload);
 });
 
+/**
+ * Fires when time is out after step (15s after step)
+ */
 gameEmitter.on(GameActions.OnStepTimeout, (payload: GameEmitterStepTimeoutPayload) => {
   GameService.onStepTimeout(wss.clients, payload);
 });
@@ -98,7 +120,7 @@ gameEmitter.on(GameActions.OnStepTimeout, (payload: GameEmitterStepTimeoutPayloa
 app.use('/', express.static(path.resolve(__dirname, './../../tic-tac-toe-front/dist')));
 
 /**
- * Used to retrieve players to make invite
+ * Used to retrieve [players]{@link Player}
  */
 app.get('/players', (req: Request, res: Response) => {
   res.json({ players: Player.list });
@@ -126,6 +148,6 @@ app.all('*', (req: Request, res: Response) => {
   res.status(404).send('404 - Not Found');
 });
 
-app.listen(8080, () => {
+app.listen(APP_PORT, () => {
   console.log(`⚡️[server]: Server is running at https://localhost:8080`);
 });
