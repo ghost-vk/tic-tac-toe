@@ -5,6 +5,9 @@ export enum GameActions {
   OnCreateGame = 'OnCreateGame',
   OnMakeStep = 'OnMakeStep',
   OnStepTimeout = 'OnStepTimeout',
+  On3SerialWins = 'On3SerialWins',
+  On10TotalWins = 'On10TotalWins',
+  OnFailCreateGame = 'OnFailCreateGame',
 }
 
 export type GameEmitterPayload = {
@@ -13,6 +16,10 @@ export type GameEmitterPayload = {
 
 export type GameEmitterStepPayload = GameEmitterPayload & {
   result: StepResult;
+};
+
+export type GameEmitterPayloadWithWinner = GameEmitterPayload & {
+  winnerId: string;
 };
 
 export type GameEmitterStepTimeoutPayload = {
@@ -31,6 +38,18 @@ class GameEmitter extends EventEmitter {
 
   onStepTimeout(payload: GameEmitterStepTimeoutPayload): void {
     this.emit(GameActions.OnStepTimeout, payload);
+  }
+
+  on3SerialWins(payload: GameEmitterPayloadWithWinner): void {
+    this.emit(GameActions.On3SerialWins, payload);
+  }
+
+  on10TotalWins(payload: GameEmitterPayloadWithWinner): void {
+    this.emit(GameActions.On10TotalWins, payload);
+  }
+
+  onFailCreateGame(payload: GameEmitterPayload & { error: string }): void {
+    this.emit(GameActions.OnFailCreateGame, payload);
   }
 }
 

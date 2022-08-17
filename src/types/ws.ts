@@ -38,7 +38,6 @@ export type WebSocketWithId = WebSocket & { id: string };
 
 export enum WSActions {
   AcceptInvite = 'AcceptInvite',
-  DeclineInvite = 'DeclineInvite',
   CreateGame = 'CreateGame',
   MakeStep = 'MakeStep',
 }
@@ -50,6 +49,7 @@ export enum WSResponseTypes {
   GameCreated = 'GameCreated',
   GameStep = 'GameStep',
   StepTimeout = 'StepTimeout',
+  FailCreateGame = 'FailCreateGame',
 }
 
 export type WSResponse = {
