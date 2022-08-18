@@ -29,14 +29,6 @@ export class GameSession {
     gameSessions.push(this);
   }
 
-  public firstPlayerWinCountSerial(): number {
-    return this.maxWinCountSerial(this._firstPlayer.id);
-  }
-
-  public secondPlayerWinCountSerial(): number {
-    return this.maxWinCountSerial(this._secondPlayer.id);
-  }
-
   static findByInviteId(inviteId: string): GameSession | undefined {
     return gameSessions.find((gs: GameSession) => gs.inviteId === inviteId);
   }
@@ -49,7 +41,25 @@ export class GameSession {
     return gameSessions.find((gs: GameSession) => gs.currentGame && gs.currentGame.id === gameId);
   }
 
-  makeGame(boardSize: number): Game | GameSessionError {
+  static findByPlayerId(playerId: string): GameSession | undefined {
+    return gameSessions.find(
+      (gs: GameSession) => gs._firstPlayer.id === playerId || gs._secondPlayer.id === playerId
+    );
+  }
+
+  static deleteById(gameSessionId: string): void {
+    gameSessions = gameSessions.filter((gs: GameSession) => gs.id !== gameSessionId);
+  }
+
+  public firstPlayerWinCountSerial(): number {
+    return this.maxWinCountSerial(this._firstPlayer.id);
+  }
+
+  public secondPlayerWinCountSerial(): number {
+    return this.maxWinCountSerial(this._secondPlayer.id);
+  }
+
+  public makeGame(boardSize: number): Game | GameSessionError {
     if (!this.canMakeNewGame) {
       return new GameSessionError('You cannot create a game within this session');
     }
@@ -60,9 +70,18 @@ export class GameSession {
     return game;
   }
 
-  addWinCount(playerId: string): void {
+  public addWinCount(playerId: string): void {
+    if (!this.currentGame) {
+      console.error(`Current game in game session [ID=${this.id}] is not defined`);
+      return;
+    }
+
     if (playerId === this._firstPlayer.id) {
       this.firstPlayerWinCount += 1;
+      this.gameHistory.push({
+        winnerId: playerId,
+        gameId: this.currentGame.id,
+      });
       if (this.firstPlayerWinCount >= 10) {
         gameEmitter.on10TotalWins({ gameSessionId: this.id, winnerId: this._firstPlayer.id });
         this.canMakeNewGame = false;
@@ -75,6 +94,10 @@ export class GameSession {
       }
     } else if (playerId === this._secondPlayer.id) {
       this.secondPlayerWinCount += 1;
+      this.gameHistory.push({
+        winnerId: playerId,
+        gameId: this.currentGame.id,
+      });
       if (this.secondPlayerWinCount >= 10) {
         gameEmitter.on10TotalWins({ gameSessionId: this.id, winnerId: this._secondPlayer.id });
         this.canMakeNewGame = false;

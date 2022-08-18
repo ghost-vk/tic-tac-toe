@@ -44,12 +44,15 @@ export enum WSActions {
 
 export enum WSResponseTypes {
   CreatePlayer = 'CreatePlayer',
+  OpponentLeftTheGameSession = 'OpponentLeftTheGameSession',
   InviteAccepted = 'InviteAccepted',
   InviteReceived = 'InviteReceived',
   GameCreated = 'GameCreated',
   GameStep = 'GameStep',
   StepTimeout = 'StepTimeout',
   FailCreateGame = 'FailCreateGame',
+  After3SerialWins = 'After3SerialWins',
+  After10TotalWins = 'After10TotalWins',
 }
 
 export type WSResponse = {
