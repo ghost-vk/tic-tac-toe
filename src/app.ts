@@ -25,7 +25,7 @@ import { InviteError } from './exceptions/inviteError';
 import { CloseConnectionPayload, connectionEmitter, ConnectionEvents } from './connectionEmitter';
 import { ConnectionService } from './connectionService';
 
-dotenv.config({ path: path.resolve(__dirname, './../.env') });
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT ? Number(process.env.WEBSOCKET_PORT) : 8081;
 const APP_PORT = process.env.APP_PORT ? Number(process.env.APP_PORT) : 8080;
@@ -79,6 +79,7 @@ function onConnect(ws: WebSocketWithId): void {
 
   ws.on('close', (): void => {
     connectionEmitter.onCloseConnection({ playerId: player.id });
+    Player.deletePlayer(player.id);
   });
 }
 

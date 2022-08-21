@@ -17,7 +17,8 @@ export class GameSession {
   public firstPlayerWinCount: number = 0;
   public secondPlayerWinCount: number = 0;
   public currentGame: Game | null = null;
-  public gameHistory: GameHistoryItem[];
+  public gameHistory: GameHistoryItem[] = [];
+  public finalWinnerId: string;
   private canMakeNewGame = true;
 
   constructor(
@@ -84,11 +85,13 @@ export class GameSession {
       });
       if (this.firstPlayerWinCount >= 10) {
         gameEmitter.on10TotalWins({ gameSessionId: this.id, winnerId: this._firstPlayer.id });
+        this.finalWinnerId = this._firstPlayer.id;
         this.canMakeNewGame = false;
         return;
       }
       if (this.firstPlayerWinCountSerial() >= 3) {
         gameEmitter.on3SerialWins({ gameSessionId: this.id, winnerId: this._firstPlayer.id });
+        this.finalWinnerId = this._firstPlayer.id;
         this.canMakeNewGame = false;
         return;
       }
@@ -100,11 +103,13 @@ export class GameSession {
       });
       if (this.secondPlayerWinCount >= 10) {
         gameEmitter.on10TotalWins({ gameSessionId: this.id, winnerId: this._secondPlayer.id });
+        this.finalWinnerId = this._secondPlayer.id;
         this.canMakeNewGame = false;
         return;
       }
       if (this.secondPlayerWinCountSerial() >= 3) {
         gameEmitter.on3SerialWins({ gameSessionId: this.id, winnerId: this._secondPlayer.id });
+        this.finalWinnerId = this._secondPlayer.id;
         this.canMakeNewGame = false;
         return;
       }
@@ -123,26 +128,31 @@ export class GameSession {
    * @returns { number }
    */
   private maxWinCountSerial(winnerId: string): number {
-    let max = 0;
     let longestWins = 0;
-    let prevWinnerId = '';
-    for (const game of this.gameHistory) {
-      if (winnerId !== game.winnerId) {
-        if (longestWins > max) {
-          max = longestWins;
+    let prevWinnerId = this.gameHistory[0].winnerId;
+    let currentWins = 0;
+
+    for (let i = 0; i < this.gameHistory.length; i += 1) {
+      const game = this.gameHistory[i];
+      const winnerMatch = game.winnerId === prevWinnerId;
+      const isLastGame = i === this.gameHistory.length - 1;
+      if (!winnerMatch) {
+        if (currentWins > longestWins) {
+          longestWins = currentWins;
         }
-        longestWins = 0;
-      }
-      if (prevWinnerId === game.winnerId) {
-        longestWins += 1;
+        currentWins = 0;
+      } else if (isLastGame) {
+        if (winnerMatch) currentWins += 1;
+        if (currentWins > longestWins) {
+          longestWins = currentWins;
+        }
       } else {
-        if (longestWins > max) {
-          max = longestWins;
-        }
-        longestWins = 0;
+        currentWins += 1;
       }
+
       prevWinnerId = game.winnerId;
     }
-    return max;
+
+    return longestWins;
   }
 }

@@ -106,7 +106,7 @@ export class GameService {
       console.error(`Game session [ID=${payload.gameSessionId}] not found`);
       return;
     }
-    const game = gameSession.currentGame;
+    let game = gameSession.currentGame;
     if (!game) {
       console.error(`Game has not been created at Game session [ID=${payload.gameSessionId}]`);
       return;
@@ -137,18 +137,27 @@ export class GameService {
       gameSession.addWinCount(payload.result.winner.id);
     }
 
-    /**
-     * To simplify, reset the game state
-     */
-    const gameState: WSResponseGamePayload['payload']['game'] | null = isEnded
-      ? null
-      : {
-          id: game.id,
-          board: game.board,
-          winner: payload.result.winner,
-          errors: payload.result.errors,
-          isEnded: payload.result.isEnded,
-        };
+    if (gameSession.finalWinnerId) return;
+
+    if (isEnded) {
+      const res = gameSession.makeGame(game.boardSize);
+      if (res instanceof GameSessionError) {
+        gameEmitter.onFailCreateGame({
+          gameSessionId: gameSession.id,
+          error: res.message,
+        });
+      } else {
+        game = res;
+      }
+    }
+
+    const gameState: WSResponseGamePayload['payload']['game'] = {
+      id: game.id,
+      board: game.board,
+      winner: payload.result.winner,
+      errors: payload.result.errors,
+      isEnded: payload.result.isEnded,
+    };
 
     const responsePayload: WSResponse & WSResponseGamePayload = {
       type: WSResponseTypes.GameStep,
@@ -260,7 +269,7 @@ export class GameService {
     clients: Set<WebSocket>,
     payload: GameEmitterPayload & { error: string }
   ) {
-    const gameSession = GameSession.findByGameId(payload.gameSessionId);
+    const gameSession = GameSession.findById(payload.gameSessionId);
     if (!gameSession) {
       console.error(`Game session [ID=${payload.gameSessionId}] not found`);
       return;
@@ -298,7 +307,7 @@ export class GameService {
   }
 
   static on3SerialWins(clients: Set<WebSocket>, payload: GameEmitterPayloadWithWinner): void {
-    const gameSession = GameSession.findByGameId(payload.gameSessionId);
+    const gameSession = GameSession.findById(payload.gameSessionId);
     if (!gameSession) {
       console.error(`Game session [ID=${payload.gameSessionId}] not found`);
       return;
@@ -355,7 +364,7 @@ export class GameService {
   }
 
   static on10TotalWins(clients: Set<WebSocket>, payload: GameEmitterPayloadWithWinner) {
-    const gameSession = GameSession.findByGameId(payload.gameSessionId);
+    const gameSession = GameSession.findById(payload.gameSessionId);
     if (!gameSession) {
       console.error(`Game session [ID=${payload.gameSessionId}] not found`);
       return;
