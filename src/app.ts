@@ -5,12 +5,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { Invite } from './invite';
-import { inviteEmitter } from './inviteEmitter';
+import { inviteEmitter } from './events/inviteEmitter';
 import { Player } from './player';
 import { isCreateInviteBody } from './typeguards/isCreateInviteBody';
-import { InviteActions, InviteEmitterPayload } from './inviteEmitter';
+import { InviteActions, InviteEmitterPayload } from './events/inviteEmitter';
 import { WebSocketWithId, WSActions, WSRequest, WSResponse, WSResponseTypes } from './types/ws';
-import { InviteService } from './inviteService';
+import { InviteService } from './services/inviteService';
 import { isWebSocketRequest } from './typeguards/isWebSocketRequest';
 import {
   GameActions,
@@ -19,11 +19,15 @@ import {
   GameEmitterPayloadWithWinner,
   GameEmitterStepPayload,
   GameEmitterStepTimeoutPayload,
-} from './gameEmitter';
-import { GameService } from './gameService';
+} from './events/gameEmitter';
+import { GameService } from './services/gameService';
 import { InviteError } from './exceptions/inviteError';
-import { CloseConnectionPayload, connectionEmitter, ConnectionEvents } from './connectionEmitter';
-import { ConnectionService } from './connectionService';
+import {
+  CloseConnectionPayload,
+  connectionEmitter,
+  ConnectionEvents,
+} from './events/connectionEmitter';
+import { ConnectionService } from './services/connectionService';
 
 dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 

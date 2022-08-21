@@ -2,11 +2,8 @@ import EventEmitter from 'events';
 
 export enum InviteActions {
   OnCreateInvite = 'OnCreateInvite',
-
   OnAcceptInvite = 'OnAcceptInvite',
   OnFailAcceptInvite = 'OnFailAcceptInvite',
-
-  OnGameSessionCreate = 'OnGameSessionCreate',
 }
 
 export type InviteEmitterPayload = {

@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
-import { CloseConnectionPayload } from './connectionEmitter';
-import { GameSession } from './gameSession';
-import { WebSocketWithId, WSResponse, WSResponseTypes } from './types/ws';
+import { CloseConnectionPayload } from '../events/connectionEmitter';
+import { GameSession } from '../gameSession';
+import { WebSocketWithId, WSResponse, WSResponseTypes } from '../types/ws';
 
 export class ConnectionService {
   static onCloseConnection(clients: Set<WebSocket>, payload: CloseConnectionPayload) {

@@ -5,7 +5,7 @@ import {
   WSResponse,
   WSResponseGamePayload,
   WSResponseTypes,
-} from './types/ws';
+} from '../types/ws';
 import { WebSocket } from 'ws';
 import {
   gameEmitter,
@@ -13,10 +13,10 @@ import {
   GameEmitterPayloadWithWinner,
   GameEmitterStepPayload,
   GameEmitterStepTimeoutPayload,
-} from './gameEmitter';
-import { GameSession } from './gameSession';
-import { GameList } from './gameList';
-import { GameSessionError } from './exceptions/gameSessionError';
+} from '../events/gameEmitter';
+import { GameSession } from '../gameSession';
+import { GameList } from '../gameList';
+import { GameSessionError } from '../exceptions/gameSessionError';
 
 export class GameService {
   static createGame(payload: WSCreateGamePayload): void {

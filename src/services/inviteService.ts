@@ -1,10 +1,10 @@
 import { WebSocket } from 'ws';
 
-import { inviteEmitter, InviteEmitterPayload } from './inviteEmitter';
-import { WebSocketWithId, WSResponse, WSResponseTypes } from './types/ws';
-import { Invite } from './invite';
-import { GameSession } from './gameSession';
-import { InviteError } from './exceptions/inviteError';
+import { inviteEmitter, InviteEmitterPayload } from '../events/inviteEmitter';
+import { WebSocketWithId, WSResponse, WSResponseTypes } from '../types/ws';
+import { Invite } from '../invite';
+import { GameSession } from '../gameSession';
+import { InviteError } from '../exceptions/inviteError';
 
 export class InviteService {
   static onCreateInvite(clients: Set<WebSocket>, payload: InviteEmitterPayload): void {

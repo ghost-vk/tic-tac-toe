@@ -1,6 +1,6 @@
 import { Player, PlayerDto } from './player';
 import { randomUUID } from 'crypto';
-import { gameEmitter } from './gameEmitter';
+import { gameEmitter } from './events/gameEmitter';
 import { GameError } from './exceptions/gameError';
 import { Board, BoardRow, FieldValue, Step, StepResult } from './types/game';
 

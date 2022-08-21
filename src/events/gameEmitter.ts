@@ -1,5 +1,5 @@
 import EventEmitter from 'events';
-import { StepResult } from './types/game';
+import { StepResult } from '../types/game';
 
 export enum GameActions {
   OnCreateGame = 'OnCreateGame',

@@ -1,7 +1,7 @@
 import { Player } from './player';
 import { GameSession } from './gameSession';
 import { randomUUID } from 'crypto';
-import { inviteEmitter } from './inviteEmitter';
+import { inviteEmitter } from './events/inviteEmitter';
 import { InviteData, InviteStatus } from './types/invite';
 import { InviteError } from './exceptions/inviteError';
 
