@@ -205,7 +205,7 @@ export class GameService {
   }
 
   static onStepTimeout(clients: Set<WebSocket>, payload: GameEmitterStepTimeoutPayload) {
-    const game = GameList.findById(payload.gameId);
+    let game = GameList.findById(payload.gameId);
 
     // Possible game is deleted
     if (!game) return;
@@ -242,6 +242,15 @@ export class GameService {
 
     game.isEnded = true;
     gameSession.addWinCount(payload.winnerId);
+    if (!gameSession.finalWinnerId) {
+      const newGame = gameSession.makeGame(game.boardSize);
+      if (newGame instanceof GameSessionError) {
+        console.error('Fail when create new game after step timeout');
+        return;
+      } else {
+        game = newGame;
+      }
+    }
 
     const responsePayload: WSResponse & WSResponseGamePayload = {
       type: WSResponseTypes.StepTimeout,
@@ -257,7 +266,13 @@ export class GameService {
             winCount: gameSession.secondPlayerWinCount,
           },
         },
-        game: null,
+        game: {
+          id: game.id,
+          board: game.board,
+          winner: null,
+          errors: [],
+          isEnded: false,
+        },
       },
     };
 
