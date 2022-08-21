@@ -2,7 +2,12 @@ import { Player, PlayerDto } from './player';
 import { randomUUID } from 'crypto';
 import { gameEmitter } from './gameEmitter';
 import { GameError } from './exceptions/gameError';
+import { Board, BoardRow, FieldValue, Step, StepResult } from './types/game';
 
+/**
+ * Class responsible for the shape of the data
+ * for building the game
+ */
 export class GameDto {
   constructor(
     public firstPlayer: PlayerDto,
@@ -12,25 +17,6 @@ export class GameDto {
   ) {}
 }
 
-type FieldValueTruthy = 'X' | 'O';
-type FieldValue = FieldValueTruthy | null;
-
-export type StepCoords = {
-  x: number;
-  y: number;
-};
-
-export type Step = { actor: PlayerDto } & StepCoords;
-
-type BoardRow = FieldValue[];
-export type Board = BoardRow[];
-
-export type StepResult = {
-  isEnded: boolean;
-  winner: PlayerDto | null;
-  errors: string[];
-};
-
 /**
  * Main game core class responsible for game logic
  */
@@ -38,7 +24,7 @@ export class Game {
   public readonly id: string;
   public readonly firstPlayer: Player;
   public readonly secondPlayer: Player;
-  private readonly boardSize: number;
+  public readonly boardSize: number;
   /**
    * Game board contains current state
    */
@@ -218,7 +204,10 @@ export class Game {
    * @returns { true | GameError }
    */
   checkUserCanStep(step: Step): true | GameError {
-    if (this.history.length === 0) return true;
+    if (this.history.length === 0) {
+      if (step.actor.id === this.firstPlayer.id) return true;
+      return new GameError('First step is for "X" player');
+    }
     const lastStep = this.history.slice(-1)[0];
     if (step.actor.id === lastStep.actor.id) {
       return new GameError("Wait for the opponent's step");
@@ -251,8 +240,7 @@ export class Game {
       return new GameError(`Cell with coordinates (${step.x}, ${step.y}) is already placed`);
     }
 
-    const cellValue: FieldValueTruthy = step.actor.id === this.firstPlayer.id ? 'X' : 'O';
-    this.board[step.y][step.x] = cellValue;
+    this.board[step.y][step.x] = step.actor.id === this.firstPlayer.id ? 'X' : 'O';
 
     this.history.push(step);
 
@@ -281,10 +269,17 @@ export class Game {
     }
   }
 
+  /**
+   * Method checks win in all directions: horizontally, vertically, diagonally
+   *
+   * @private
+   * @returns { boolean }
+   */
   private isWin(): boolean {
     if (this.checkWinHorizontally()) return true;
     if (this.checkWinVertically()) return true;
-    return this.checkWinDiagonally();
+    if (this.checkWinDiagonallyFromLeftUp()) return true;
+    return this.checkWinDiagonallyFromRightUp();
   }
 
   /**
@@ -338,12 +333,6 @@ export class Game {
       if (!isNotMatchFirstElement) continue;
       return true;
     }
-    return false;
-  }
-
-  private checkWinDiagonally(): boolean {
-    if (this.checkWinDiagonallyFromLeftUp()) return true;
-    if (this.checkWinDiagonallyFromRightUp()) return true;
     return false;
   }
 

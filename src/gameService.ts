@@ -1,20 +1,22 @@
 import {
-  WSCreateGamePayload,
   WebSocketWithId,
+  WSCreateGamePayload,
+  WSMakeStepPayload,
   WSResponse,
   WSResponseGamePayload,
   WSResponseTypes,
-  WSMakeStepPayload,
 } from './types/ws';
 import { WebSocket } from 'ws';
 import {
   gameEmitter,
   GameEmitterPayload,
+  GameEmitterPayloadWithWinner,
   GameEmitterStepPayload,
   GameEmitterStepTimeoutPayload,
 } from './gameEmitter';
 import { GameSession } from './gameSession';
 import { GameList } from './gameList';
+import { GameSessionError } from './exceptions/gameSessionError';
 
 export class GameService {
   static createGame(payload: WSCreateGamePayload): void {
@@ -29,7 +31,11 @@ export class GameService {
       return;
     }
 
-    gameSession.makeGame(payload.boardSize);
+    const game = gameSession.makeGame(payload.boardSize);
+    if (game instanceof GameSessionError) {
+      gameEmitter.onFailCreateGame({ error: game.message, gameSessionId: gameSession.id });
+    }
+
     const emitterPayload: GameEmitterPayload = {
       gameSessionId: gameSession.id,
     };
@@ -56,11 +62,11 @@ export class GameService {
       if (firstPlayerClient && secondPlayerClient) continue;
 
       if (wsClient.id === game.firstPlayer.id) {
-        secondPlayerClient = wsClient;
+        firstPlayerClient = wsClient;
       }
 
       if (wsClient.id === game.secondPlayer.id) {
-        firstPlayerClient = wsClient;
+        secondPlayerClient = wsClient;
       }
     }
 
@@ -100,7 +106,7 @@ export class GameService {
       console.error(`Game session [ID=${payload.gameSessionId}] not found`);
       return;
     }
-    const game = gameSession.currentGame;
+    let game = gameSession.currentGame;
     if (!game) {
       console.error(`Game has not been created at Game session [ID=${payload.gameSessionId}]`);
       return;
@@ -113,11 +119,11 @@ export class GameService {
       if (firstPlayerClient && secondPlayerClient) continue;
 
       if (wsClient.id === game.firstPlayer.id) {
-        secondPlayerClient = wsClient;
+        firstPlayerClient = wsClient;
       }
 
       if (wsClient.id === game.secondPlayer.id) {
-        firstPlayerClient = wsClient;
+        secondPlayerClient = wsClient;
       }
     }
 
@@ -131,18 +137,27 @@ export class GameService {
       gameSession.addWinCount(payload.result.winner.id);
     }
 
-    /**
-     * To simplify, reset the game state
-     */
-    const gameState: WSResponseGamePayload['payload']['game'] | null = isEnded
-      ? null
-      : {
-          id: game.id,
-          board: game.board,
-          winner: payload.result.winner,
-          errors: payload.result.errors,
-          isEnded: payload.result.isEnded,
-        };
+    if (gameSession.finalWinnerId) return;
+
+    if (isEnded) {
+      const res = gameSession.makeGame(game.boardSize);
+      if (res instanceof GameSessionError) {
+        gameEmitter.onFailCreateGame({
+          gameSessionId: gameSession.id,
+          error: res.message,
+        });
+      } else {
+        game = res;
+      }
+    }
+
+    const gameState: WSResponseGamePayload['payload']['game'] = {
+      id: game.id,
+      board: game.board,
+      winner: payload.result.winner,
+      errors: payload.result.errors,
+      isEnded: payload.result.isEnded,
+    };
 
     const responsePayload: WSResponse & WSResponseGamePayload = {
       type: WSResponseTypes.GameStep,
@@ -212,11 +227,11 @@ export class GameService {
       if (firstPlayerClient && secondPlayerClient) continue;
 
       if (wsClient.id === game.firstPlayer.id) {
-        secondPlayerClient = wsClient;
+        firstPlayerClient = wsClient;
       }
 
       if (wsClient.id === game.secondPlayer.id) {
-        firstPlayerClient = wsClient;
+        secondPlayerClient = wsClient;
       }
     }
 
@@ -248,5 +263,160 @@ export class GameService {
 
     firstPlayerClient.send(JSON.stringify(responsePayload));
     secondPlayerClient.send(JSON.stringify(responsePayload));
+  }
+
+  static onFailCreateGame(
+    clients: Set<WebSocket>,
+    payload: GameEmitterPayload & { error: string }
+  ) {
+    const gameSession = GameSession.findById(payload.gameSessionId);
+    if (!gameSession) {
+      console.error(`Game session [ID=${payload.gameSessionId}] not found`);
+      return;
+    }
+
+    let firstPlayerClient: WebSocketWithId | null = null;
+    let secondPlayerClient: WebSocketWithId | null = null;
+    for (const client of clients) {
+      const wsClient = client as WebSocketWithId;
+      if (!wsClient.id) continue;
+      if (firstPlayerClient && secondPlayerClient) continue;
+
+      if (wsClient.id === gameSession._firstPlayer.id) {
+        firstPlayerClient = wsClient;
+      }
+
+      if (wsClient.id === gameSession._secondPlayer.id) {
+        secondPlayerClient = wsClient;
+      }
+    }
+
+    if (!firstPlayerClient || !secondPlayerClient) {
+      console.error(
+        `First or second player of game session [ID=${payload.gameSessionId}] not found`
+      );
+      return;
+    }
+
+    const responsePayload: WSResponse = {
+      type: WSResponseTypes.FailCreateGame,
+      payload: { error: payload.error },
+    };
+    firstPlayerClient.send(JSON.stringify(responsePayload));
+    secondPlayerClient.send(JSON.stringify(responsePayload));
+  }
+
+  static on3SerialWins(clients: Set<WebSocket>, payload: GameEmitterPayloadWithWinner): void {
+    const gameSession = GameSession.findById(payload.gameSessionId);
+    if (!gameSession) {
+      console.error(`Game session [ID=${payload.gameSessionId}] not found`);
+      return;
+    }
+
+    let firstPlayerClient: WebSocketWithId | null = null;
+    let secondPlayerClient: WebSocketWithId | null = null;
+    for (const client of clients) {
+      const wsClient = client as WebSocketWithId;
+      if (!wsClient.id) continue;
+      if (firstPlayerClient && secondPlayerClient) continue;
+
+      if (wsClient.id === gameSession._firstPlayer.id) {
+        firstPlayerClient = wsClient;
+      }
+
+      if (wsClient.id === gameSession._secondPlayer.id) {
+        secondPlayerClient = wsClient;
+      }
+    }
+
+    if (!firstPlayerClient || !secondPlayerClient) {
+      console.error(
+        `First or second player of game session [ID=${payload.gameSessionId}] not found`
+      );
+      return;
+    }
+
+    const message = (playerId): string =>
+      playerId === payload.winnerId
+        ? 'Congratulations! Rapidly victory!'
+        : "Don't be so naive next time";
+
+    const firstPlayerResponse: WSResponse = {
+      type: WSResponseTypes.After3SerialWins,
+      payload: {
+        winnerId: payload.winnerId,
+        message: message(firstPlayerClient.id),
+      },
+    };
+
+    const secondPlayerResponse: WSResponse = {
+      type: WSResponseTypes.After3SerialWins,
+      payload: {
+        winnerId: payload.winnerId,
+        message: message(secondPlayerClient.id),
+      },
+    };
+
+    firstPlayerClient.send(JSON.stringify(firstPlayerResponse));
+    secondPlayerClient.send(JSON.stringify(secondPlayerResponse));
+
+    GameSession.deleteById(gameSession.id);
+  }
+
+  static on10TotalWins(clients: Set<WebSocket>, payload: GameEmitterPayloadWithWinner) {
+    const gameSession = GameSession.findById(payload.gameSessionId);
+    if (!gameSession) {
+      console.error(`Game session [ID=${payload.gameSessionId}] not found`);
+      return;
+    }
+
+    let firstPlayerClient: WebSocketWithId | null = null;
+    let secondPlayerClient: WebSocketWithId | null = null;
+    for (const client of clients) {
+      const wsClient = client as WebSocketWithId;
+      if (!wsClient.id) continue;
+      if (firstPlayerClient && secondPlayerClient) continue;
+
+      if (wsClient.id === gameSession._firstPlayer.id) {
+        firstPlayerClient = wsClient;
+      }
+
+      if (wsClient.id === gameSession._secondPlayer.id) {
+        secondPlayerClient = wsClient;
+      }
+    }
+
+    if (!firstPlayerClient || !secondPlayerClient) {
+      console.error(
+        `First or second player of game session [ID=${payload.gameSessionId}] not found`
+      );
+      return;
+    }
+
+    const message = (playerId): string =>
+      playerId === payload.winnerId
+        ? 'Congratulations! Total victory!'
+        : "You fought bravely, maybe you'll have better luck next time";
+
+    const firstPlayerResponse: WSResponse = {
+      type: WSResponseTypes.After10TotalWins,
+      payload: {
+        winnerId: payload.winnerId,
+        message: message(firstPlayerClient.id),
+      },
+    };
+
+    const secondPlayerResponse: WSResponse = {
+      type: WSResponseTypes.After10TotalWins,
+      payload: {
+        winnerId: payload.winnerId,
+        message: message(secondPlayerClient.id),
+      },
+    };
+
+    firstPlayerClient.send(JSON.stringify(firstPlayerResponse));
+    secondPlayerClient.send(JSON.stringify(secondPlayerResponse));
+
+    GameSession.deleteById(gameSession.id);
   }
 }

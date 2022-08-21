@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import { isInSomeEnum } from '../utils/isInSomeEnum';
-import { Board, StepCoords } from '../game';
+import { Board, StepCoords } from './game';
 import { PlayerDto } from '../player';
 
 export type WSAcceptInvitePayload = {
@@ -38,7 +38,6 @@ export type WebSocketWithId = WebSocket & { id: string };
 
 export enum WSActions {
   AcceptInvite = 'AcceptInvite',
-  DeclineInvite = 'DeclineInvite',
   CreateGame = 'CreateGame',
   MakeStep = 'MakeStep',
 }
@@ -50,6 +49,10 @@ export enum WSResponseTypes {
   GameCreated = 'GameCreated',
   GameStep = 'GameStep',
   StepTimeout = 'StepTimeout',
+  OpponentLeftTheGameSession = 'OpponentLeftTheGameSession',
+  FailCreateGame = 'FailCreateGame',
+  After3SerialWins = 'After3SerialWins',
+  After10TotalWins = 'After10TotalWins',
 }
 
 export type WSResponse = {
