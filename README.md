@@ -5,6 +5,8 @@ with the connection of players via websockets. Inside shows an example of
 working with event emitters. The application contains two important components: 
 the connection between the players and the core of the game.
 
+![](./public/preview.gif)
+
 ## Connection between players
 
 A new player is created on websocket connection: 
